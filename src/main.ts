@@ -2,8 +2,9 @@ import { assert } from "./assert";
 
 const canvas = document.createElement("canvas");
 document.body.appendChild(canvas);
-const initialText = `Heljjlo world
-JJJJJJJJJsecond line
+canvas.style.cursor = "text";
+const initialText = `Hello world
+second line
 this is a test string`;
 
 const state = {
@@ -87,32 +88,66 @@ function raf() {
   ctx.lineWidth = 2;
   // draw cursor
   for (const cursor of state.cursors) {
+    const sorted = sortedCursor(cursor);
+
     ctx.strokeStyle = "#55e";
+
+    const dirSize =
+      sorted.left.x === sorted.right.x && sorted.left.y === sorted.right.y
+        ? 0
+        : 0.5;
     // draw cursor line
     ctx.beginPath();
     ctx.moveTo(
-      margins.x + cursor.first.x * state.charRect.width,
-      margins.y + cursor.first.y * state.charRect.height,
+      margins.x +
+        sorted.left.x * state.charRect.width +
+        state.charRect.width * dirSize,
+      margins.y + sorted.left.y * state.charRect.height,
     );
     ctx.lineTo(
-      margins.x + cursor.first.x * state.charRect.width,
+      margins.x + sorted.left.x * state.charRect.width,
+      margins.y + sorted.left.y * state.charRect.height,
+    );
+    ctx.lineTo(
+      margins.x + sorted.left.x * state.charRect.width,
       margins.y +
-        cursor.first.y * state.charRect.height +
+        sorted.left.y * state.charRect.height +
+        +state.charRect.height,
+    );
+    ctx.lineTo(
+      margins.x +
+        sorted.left.x * state.charRect.width +
+        state.charRect.width * dirSize,
+      margins.y +
+        sorted.left.y * state.charRect.height +
         +state.charRect.height,
     );
     ctx.stroke();
 
-    ctx.strokeStyle = "#55e";
     // draw second
     ctx.beginPath();
     ctx.moveTo(
-      margins.x + cursor.second.x * state.charRect.width,
-      margins.y + cursor.second.y * state.charRect.height,
+      margins.x +
+        sorted.right.x * state.charRect.width +
+        state.charRect.width * -dirSize,
+      margins.y + sorted.right.y * state.charRect.height,
     );
     ctx.lineTo(
-      margins.x + cursor.second.x * state.charRect.width,
+      margins.x + sorted.right.x * state.charRect.width,
+      margins.y + sorted.right.y * state.charRect.height,
+    );
+    ctx.lineTo(
+      margins.x + sorted.right.x * state.charRect.width,
       margins.y +
-        cursor.second.y * state.charRect.height +
+        sorted.right.y * state.charRect.height +
+        +state.charRect.height,
+    );
+    ctx.lineTo(
+      margins.x +
+        sorted.right.x * state.charRect.width +
+        state.charRect.width * -dirSize,
+      margins.y +
+        sorted.right.y * state.charRect.height +
         +state.charRect.height,
     );
     ctx.stroke();
@@ -174,7 +209,7 @@ canvas.onpointermove = (e) => {
   }
 };
 
-canvas.onblur = () => {
+document.onblur = () => {
   state.cursorDown = false;
   state.cursors = [];
 };
@@ -253,7 +288,9 @@ document.onkeydown = (e) => {
       ArrowDown: { x: 0, y: 1 },
     };
     for (const cursor of state.cursors) {
+      // @ts-expect-error too lazy to solve this rn
       cursor.first.x += dirs[e.key].x;
+      // @ts-expect-error too lazy to solve this rn
       cursor.first.y += dirs[e.key].y;
 
       cursor.first.y = Math.min(Math.max(0, cursor.first.y), lines.length - 1);
@@ -269,6 +306,18 @@ document.onkeydown = (e) => {
         cursor.first.x = 0;
       }
       cursor.second = { ...cursor.first };
+    }
+  } else {
+    if (e.key.length === 1) {
+      for (const cursor of state.cursors) {
+        state.text.splice(
+          textIndexFromXY(state.text, cursor.first.x, cursor.first.y),
+          0,
+          e.key,
+        );
+        cursor.first.x += 1;
+        cursor.second = { ...cursor.first };
+      }
     }
   }
 };
@@ -310,4 +359,29 @@ function textIndexFromXY(text: string[], x: number, y: number): number {
     }
   }
   return text.length;
+}
+
+function sortedCursor(cursor: {
+  first: { x: number; y: number };
+  second: { x: number; y: number };
+}) {
+  if (cursor.first.y < cursor.second.y) {
+    return {
+      left: cursor.first,
+      right: cursor.second,
+    };
+  }
+  if (cursor.first.y > cursor.second.y) {
+    return {
+      left: cursor.second,
+      right: cursor.first,
+    };
+  }
+  if (cursor.first.x < cursor.second.x) {
+    return {
+      left: cursor.first,
+      right: cursor.second,
+    };
+  }
+  return { left: cursor.second, right: cursor.first };
 }
