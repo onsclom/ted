@@ -6,20 +6,47 @@ canvas.style.cursor = "text";
 const initialText = `Hello world
 second line
 this is a test string`;
+const margins = { x: 10, y: 10 };
 
 const state = {
   cursors: [] as {
-    first: { x: number; y: number };
-    second: { x: number; y: number };
+    first: {
+      // in text coords
+      text: { x: number; y: number };
+      // in canvas coords
+      animated: { x: number; y: number };
+    };
+    second: {
+      // in text coords
+      text: { x: number; y: number };
+      // in canvas coords
+      animated: { x: number; y: number };
+    };
   }[],
   text: initialText.split(""),
   charRect: { width: 0, height: 0 },
   cursorDown: false,
 };
 
-state.cursors = [{ first: { x: 0, y: 0 }, second: { x: 0, y: 0 } }];
+state.cursors = [
+  {
+    first: {
+      text: { x: 0, y: 0 },
+      animated: textPosToCanvasPos({ x: 0, y: 0 }),
+    },
+    second: {
+      text: { x: 0, y: 0 },
+      animated: textPosToCanvasPos({ x: 0, y: 0 }),
+    },
+  },
+];
 
-const margins = { x: 10, y: 10 };
+function textPosToCanvasPos(textPos: { x: number; y: number }) {
+  return {
+    x: textPos.x * state.charRect.width + margins.x,
+    y: textPos.y * state.charRect.height + margins.y,
+  };
+}
 
 const lineSpacing = 1.815;
 
@@ -45,38 +72,51 @@ function raf() {
   for (const cursor of state.cursors) {
     // correct y
     const lines = lineText.length;
-    if (cursor.first.y >= lines) {
-      cursor.first.y = lines - 1;
-      cursor.first.x = lineText[cursor.first.y].length;
+    if (cursor.first.text.y >= lines) {
+      cursor.first.text.y = lines - 1;
+      cursor.first.text.x = lineText[cursor.first.text.y].length;
     }
-    if (cursor.second.y >= lines) {
-      cursor.second.y = lines - 1;
-      cursor.second.x = lineText[cursor.second.y].length;
+    if (cursor.second.text.y >= lines) {
+      cursor.second.text.y = lines - 1;
+      cursor.second.text.x = lineText[cursor.second.text.y].length;
     }
 
-    if (cursor.first.y < 0) {
-      cursor.first.y = 0;
-      cursor.first.x = 0;
+    if (cursor.first.text.y < 0) {
+      cursor.first.text.y = 0;
+      cursor.first.text.x = 0;
     }
-    if (cursor.second.y < 0) {
-      cursor.second.y = 0;
+    if (cursor.second.text.y < 0) {
+      cursor.second.text.y = 0;
       cursor.second;
     }
 
     // correct x
-    if (cursor.first.x > lineText[cursor.first.y].length) {
-      cursor.first.x = lineText[cursor.first.y].length;
+    if (cursor.first.text.x > lineText[cursor.first.text.y].length) {
+      cursor.first.text.x = lineText[cursor.first.text.y].length;
     }
-    if (cursor.second.x > lineText[cursor.second.y].length) {
-      cursor.second.x = lineText[cursor.second.y].length;
+    if (cursor.second.text.x > lineText[cursor.second.text.y].length) {
+      cursor.second.text.x = lineText[cursor.second.text.y].length;
     }
 
-    if (cursor.first.x < 0) {
-      cursor.first.x = 0;
+    if (cursor.first.text.x < 0) {
+      cursor.first.text.x = 0;
     }
-    if (cursor.second.x < 0) {
-      cursor.second.x = 0;
+    if (cursor.second.text.x < 0) {
+      cursor.second.text.x = 0;
     }
+
+    // animate cursor
+    const firstTarget = textPosToCanvasPos(cursor.first.text);
+    const secondTarget = textPosToCanvasPos(cursor.second.text);
+    const animateRatio = 0.2;
+    cursor.first.animated.x +=
+      (firstTarget.x - cursor.first.animated.x) * animateRatio;
+    cursor.first.animated.y +=
+      (firstTarget.y - cursor.first.animated.y) * animateRatio;
+    cursor.second.animated.x +=
+      (secondTarget.x - cursor.second.animated.x) * animateRatio;
+    cursor.second.animated.y +=
+      (secondTarget.y - cursor.second.animated.y) * animateRatio;
   }
 
   const bounds = canvas.getBoundingClientRect();
@@ -104,62 +144,44 @@ function raf() {
     ctx.strokeStyle = "#55e";
 
     const dirSize =
-      sorted.left.x === sorted.right.x && sorted.left.y === sorted.right.y
+      sorted.left.text.x === sorted.right.text.x &&
+      sorted.left.text.y === sorted.right.text.y
         ? 0
         : 0.5;
     // draw cursor line
     ctx.beginPath();
     ctx.moveTo(
-      margins.x +
-        sorted.left.x * state.charRect.width +
-        state.charRect.width * dirSize,
-      margins.y + sorted.left.y * state.charRect.height,
+      sorted.left.animated.x + state.charRect.width * dirSize,
+      sorted.left.animated.y,
+    );
+    ctx.lineTo(sorted.left.animated.x, sorted.left.animated.y);
+    ctx.lineTo(
+      sorted.left.animated.x,
+      sorted.left.animated.y + state.charRect.height,
     );
     ctx.lineTo(
-      margins.x + sorted.left.x * state.charRect.width,
-      margins.y + sorted.left.y * state.charRect.height,
+      sorted.left.animated.x + state.charRect.width * dirSize,
+      sorted.left.animated.y + state.charRect.height,
     );
-    ctx.lineTo(
-      margins.x + sorted.left.x * state.charRect.width,
-      margins.y +
-        sorted.left.y * state.charRect.height +
-        +state.charRect.height,
-    );
-    ctx.lineTo(
-      margins.x +
-        sorted.left.x * state.charRect.width +
-        state.charRect.width * dirSize,
-      margins.y +
-        sorted.left.y * state.charRect.height +
-        +state.charRect.height,
-    );
+
     ctx.stroke();
 
     // draw second
     ctx.beginPath();
+
+    // draw using animated pos
     ctx.moveTo(
-      margins.x +
-        sorted.right.x * state.charRect.width +
-        state.charRect.width * -dirSize,
-      margins.y + sorted.right.y * state.charRect.height,
+      sorted.right.animated.x + state.charRect.width * -dirSize,
+      sorted.right.animated.y,
+    );
+    ctx.lineTo(sorted.right.animated.x, sorted.right.animated.y);
+    ctx.lineTo(
+      sorted.right.animated.x,
+      sorted.right.animated.y + state.charRect.height,
     );
     ctx.lineTo(
-      margins.x + sorted.right.x * state.charRect.width,
-      margins.y + sorted.right.y * state.charRect.height,
-    );
-    ctx.lineTo(
-      margins.x + sorted.right.x * state.charRect.width,
-      margins.y +
-        sorted.right.y * state.charRect.height +
-        +state.charRect.height,
-    );
-    ctx.lineTo(
-      margins.x +
-        sorted.right.x * state.charRect.width +
-        state.charRect.width * -dirSize,
-      margins.y +
-        sorted.right.y * state.charRect.height +
-        +state.charRect.height,
+      sorted.right.animated.x + state.charRect.width * -dirSize,
+      sorted.right.animated.y + state.charRect.height,
     );
     ctx.stroke();
   }
@@ -199,7 +221,17 @@ canvas.onpointerdown = (e) => {
     Math.floor((e.clientY - margins.y) / state.charRect.height),
     0,
   );
-  state.cursors = [{ first: { x, y }, second: { x, y } }];
+  // if (state.cursors.length > 1) {
+  state.cursors = [
+    {
+      first: { text: { x, y }, animated: textPosToCanvasPos({ x, y }) },
+      second: { text: { x, y }, animated: textPosToCanvasPos({ x, y }) },
+    },
+  ];
+  // } else {
+  //   state.cursors[0].first.text = { x, y };
+  //   state.cursors[0].second.text = { x, y };
+  // }
 };
 
 canvas.onpointerup = () => {
@@ -216,7 +248,7 @@ canvas.onpointermove = (e) => {
       Math.floor((e.clientY - margins.y) / state.charRect.height),
       0,
     );
-    state.cursors[0].second = { x, y };
+    state.cursors[0].second.text = { x, y };
   }
 };
 
@@ -236,8 +268,8 @@ document.onkeydown = (e) => {
       // if first === start, delete the char before start
 
       const cursorsSame =
-        cursor.first.x === cursor.second.x &&
-        cursor.first.y === cursor.second.y;
+        cursor.first.text.x === cursor.second.text.x &&
+        cursor.first.text.y === cursor.second.text.y;
       if (cursorsSame) {
         // delete the char before start
         let x = 0;
@@ -245,16 +277,18 @@ document.onkeydown = (e) => {
         for (let i = 0; i <= state.text.length; i++) {
           const char = state.text[i];
           if (
-            (x === cursor.first.x - 1 && y === cursor.first.y) ||
-            (char === "\n" && cursor.first.x === 0 && y === cursor.first.y - 1)
+            (x === cursor.first.text.x - 1 && y === cursor.first.text.y) ||
+            (char === "\n" &&
+              cursor.first.text.x === 0 &&
+              y === cursor.first.text.y - 1)
           ) {
             state.text.splice(i, 1);
-            cursor.first.x -= 1;
-            if (cursor.first.x < 0) {
-              cursor.first.y -= 1;
-              cursor.first.x = lines[cursor.first.y].length;
+            cursor.first.text.x -= 1;
+            if (cursor.first.text.x < 0) {
+              cursor.first.text.y -= 1;
+              cursor.first.text.x = lines[cursor.first.text.y].length;
             }
-            cursor.second = { ...cursor.first };
+            cursor.second.text = { ...cursor.first.text };
             break;
           }
           if (char === "\n") {
@@ -268,11 +302,19 @@ document.onkeydown = (e) => {
       // else, delete the chars between first and second
       else {
         const sorted = sortedCursor(cursor);
-        const start = textIndexFromXY(state.text, sorted.left.x, sorted.left.y);
-        const end = textIndexFromXY(state.text, sorted.right.x, sorted.right.y);
+        const start = textIndexFromXY(
+          state.text,
+          sorted.left.text.x,
+          sorted.left.text.y,
+        );
+        const end = textIndexFromXY(
+          state.text,
+          sorted.right.text.x,
+          sorted.right.text.y,
+        );
         state.text.splice(start, end - start);
-        cursor.first = sorted.left;
-        cursor.second = { ...sorted.left };
+        cursor.first.text = { ...sorted.left.text };
+        cursor.second.text = { ...sorted.left.text };
       }
     }
   } else if (e.key === "Enter") {
@@ -280,13 +322,21 @@ document.onkeydown = (e) => {
     for (const cursor of state.cursors) {
       const sorted = sortedCursor(cursor);
       // delete the chars between first and second
-      const start = textIndexFromXY(state.text, sorted.left.x, sorted.left.y);
-      const end = textIndexFromXY(state.text, sorted.right.x, sorted.right.y);
+      const start = textIndexFromXY(
+        state.text,
+        sorted.left.text.x,
+        sorted.left.text.y,
+      );
+      const end = textIndexFromXY(
+        state.text,
+        sorted.right.text.x,
+        sorted.right.text.y,
+      );
       state.text.splice(start, end - start, "\n");
-      cursor.first = sorted.left;
-      cursor.first.x = 0;
-      cursor.first.y += 1;
-      cursor.second = { ...cursor.first };
+      cursor.first.text = { ...sorted.left.text };
+      cursor.first.text.x = 0;
+      cursor.first.text.y += 1;
+      cursor.second.text = { ...cursor.first.text };
     }
   } else if (
     ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)
@@ -300,54 +350,55 @@ document.onkeydown = (e) => {
 
     for (const cursor of state.cursors) {
       if (e.shiftKey) {
+        console.log("moving with shift");
         // @ts-expect-error too lazy to solve this rn
-        cursor.second.x += dirs[e.key].x;
+        cursor.second.text.x += dirs[e.key].x;
         // @ts-expect-error too lazy to solve this rn
-        cursor.second.y += dirs[e.key].y;
+        cursor.second.text.y += dirs[e.key].y;
 
-        if (cursor.second.y < 0) {
-          cursor.second.y = 0;
-          cursor.second.x = 0;
-        } else if (cursor.second.y >= lines.length) {
-          cursor.second.y = lines.length - 1;
-          cursor.second.x = lines[lines.length - 1].length;
+        if (cursor.second.text.y < 0) {
+          cursor.second.text.y = 0;
+          cursor.second.text.x = 0;
+        } else if (cursor.second.text.y >= lines.length) {
+          cursor.second.text.y = lines.length - 1;
+          cursor.second.text.x = lines[lines.length - 1].length;
         }
 
-        if (cursor.second.x === -1 && cursor.second.y > 0) {
+        if (cursor.second.text.x === -1 && cursor.second.text.y > 0) {
           // go to line above
-          cursor.second.y -= 1;
-          cursor.second.x = lines[cursor.second.y].length;
+          cursor.second.text.y -= 1;
+          cursor.second.text.x = lines[cursor.second.text.y].length;
         }
-        if (cursor.second.x === lines[cursor.second.y].length + 1) {
+        if (cursor.second.text.x === lines[cursor.second.text.y].length + 1) {
           // go to line below
-          cursor.second.y += 1;
-          cursor.second.x = 0;
+          cursor.second.text.y += 1;
+          cursor.second.text.x = 0;
         }
       } else {
         // @ts-expect-error too lazy to solve this rn
-        cursor.first.x += dirs[e.key].x;
+        cursor.first.text.x += dirs[e.key].x;
         // @ts-expect-error too lazy to solve this rn
-        cursor.first.y += dirs[e.key].y;
+        cursor.first.text.y += dirs[e.key].y;
 
-        if (cursor.first.y < 0) {
-          cursor.first.y = 0;
-          cursor.first.x = 0;
-        } else if (cursor.first.y >= lines.length) {
-          cursor.first.y = lines.length - 1;
-          cursor.first.x = lines[lines.length - 1].length;
+        if (cursor.first.text.y < 0) {
+          cursor.first.text.y = 0;
+          cursor.first.text.x = 0;
+        } else if (cursor.first.text.y >= lines.length) {
+          cursor.first.text.y = lines.length - 1;
+          cursor.first.text.x = lines[lines.length - 1].length;
         }
 
-        if (cursor.first.x === -1 && cursor.first.y > 0) {
+        if (cursor.first.text.x === -1 && cursor.first.text.y > 0) {
           // go to line above
-          cursor.first.y -= 1;
-          cursor.first.x = lines[cursor.first.y].length;
+          cursor.first.text.y -= 1;
+          cursor.first.text.x = lines[cursor.first.text.y].length;
         }
-        if (cursor.first.x === lines[cursor.first.y].length + 1) {
+        if (cursor.first.text.x === lines[cursor.first.text.y].length + 1) {
           // go to line below
-          cursor.first.y += 1;
-          cursor.first.x = 0;
+          cursor.first.text.y += 1;
+          cursor.first.text.x = 0;
         }
-        cursor.second = { ...cursor.first };
+        cursor.second.text = { ...cursor.first.text };
       }
     }
   } else {
@@ -355,12 +406,20 @@ document.onkeydown = (e) => {
       for (const cursor of state.cursors) {
         // delete the chars between first and second
         const sorted = sortedCursor(cursor);
-        const start = textIndexFromXY(state.text, sorted.left.x, sorted.left.y);
-        const end = textIndexFromXY(state.text, sorted.right.x, sorted.right.y);
+        const start = textIndexFromXY(
+          state.text,
+          sorted.left.text.x,
+          sorted.left.text.y,
+        );
+        const end = textIndexFromXY(
+          state.text,
+          sorted.right.text.x,
+          sorted.right.text.y,
+        );
         state.text.splice(start, end - start, e.key);
-        cursor.first = sorted.left;
-        cursor.first.x += 1;
-        cursor.second = { ...cursor.first };
+        cursor.first.text = { ...sorted.left.text };
+        cursor.first.text.x += 1;
+        cursor.second.text = { ...cursor.first.text };
       }
     }
   }
@@ -403,17 +462,14 @@ function textIndexFromXY(text: string[], x: number, y: number): number {
   return text.length;
 }
 
-function sortedCursor(cursor: {
-  first: { x: number; y: number };
-  second: { x: number; y: number };
-}) {
-  if (cursor.first.y < cursor.second.y) {
+function sortedCursor(cursor: (typeof state.cursors)[0]) {
+  if (cursor.first.text.y < cursor.second.text.y) {
     return { left: cursor.first, right: cursor.second };
   }
-  if (cursor.first.y > cursor.second.y) {
+  if (cursor.first.text.y > cursor.second.text.y) {
     return { left: cursor.second, right: cursor.first };
   }
-  if (cursor.first.x < cursor.second.x) {
+  if (cursor.first.text.x < cursor.second.text.x) {
     return { left: cursor.first, right: cursor.second };
   }
   return { left: cursor.second, right: cursor.first };
