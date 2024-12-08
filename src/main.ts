@@ -221,17 +221,17 @@ canvas.onpointerdown = (e) => {
     Math.floor((e.clientY - margins.y) / state.charRect.height),
     0,
   );
-  // if (state.cursors.length > 1) {
-  state.cursors = [
-    {
-      first: { text: { x, y }, animated: textPosToCanvasPos({ x, y }) },
-      second: { text: { x, y }, animated: textPosToCanvasPos({ x, y }) },
-    },
-  ];
-  // } else {
-  //   state.cursors[0].first.text = { x, y };
-  //   state.cursors[0].second.text = { x, y };
-  // }
+  if (state.cursors.length > 1) {
+    state.cursors = [
+      {
+        first: { text: { x, y }, animated: textPosToCanvasPos({ x, y }) },
+        second: { text: { x, y }, animated: textPosToCanvasPos({ x, y }) },
+      },
+    ];
+  } else {
+    state.cursors[0].first.text = { x, y };
+    state.cursors[0].second.text = { x, y };
+  }
 };
 
 canvas.onpointerup = () => {
