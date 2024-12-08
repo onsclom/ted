@@ -1,0 +1,11 @@
+- animate things:
+  - letter movement
+  - letter inserts
+  - letter deletes
+  - cursor blinking
+  - cursor pos
+- movement modifiers:
+  - cmd
+  - opt
+- double click to select word
+- triple click to select line

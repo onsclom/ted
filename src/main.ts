@@ -17,6 +17,8 @@ const state = {
   cursorDown: false,
 };
 
+state.cursors = [{ first: { x: 0, y: 0 }, second: { x: 0, y: 0 } }];
+
 const margins = { x: 10, y: 10 };
 
 const lineSpacing = 1.815;
@@ -50,6 +52,15 @@ function raf() {
     if (cursor.second.y >= lines) {
       cursor.second.y = lines - 1;
       cursor.second.x = lineText[cursor.second.y].length;
+    }
+
+    if (cursor.first.y < 0) {
+      cursor.first.y = 0;
+      cursor.first.x = 0;
+    }
+    if (cursor.second.y < 0) {
+      cursor.second.y = 0;
+      cursor.second;
     }
 
     // correct x
@@ -209,7 +220,7 @@ canvas.onpointermove = (e) => {
   }
 };
 
-document.onblur = () => {
+canvas.onblur = () => {
   state.cursorDown = false;
   state.cursors = [];
 };
@@ -256,24 +267,23 @@ document.onkeydown = (e) => {
       }
       // else, delete the chars between first and second
       else {
+        const sorted = sortedCursor(cursor);
+        const start = textIndexFromXY(state.text, sorted.left.x, sorted.left.y);
+        const end = textIndexFromXY(state.text, sorted.right.x, sorted.right.y);
+        state.text.splice(start, end - start);
+        cursor.first = sorted.left;
+        cursor.second = { ...sorted.left };
       }
     }
   } else if (e.key === "Enter") {
     // add "\n" at cursor position
     for (const cursor of state.cursors) {
-      const startEqualsEnd =
-        cursor.first.x === cursor.second.x &&
-        cursor.first.y === cursor.second.y;
-      if (startEqualsEnd) {
-        state.text.splice(
-          textIndexFromXY(state.text, cursor.first.x, cursor.first.y),
-          0,
-          "\n",
-        );
-        cursor.first.x += 1;
-        cursor.second = { ...cursor.first };
-      }
-      // update cursor pos
+      const sorted = sortedCursor(cursor);
+      // delete the chars between first and second
+      const start = textIndexFromXY(state.text, sorted.left.x, sorted.left.y);
+      const end = textIndexFromXY(state.text, sorted.right.x, sorted.right.y);
+      state.text.splice(start, end - start, "\n");
+      cursor.first = sorted.left;
       cursor.first.x = 0;
       cursor.first.y += 1;
       cursor.second = { ...cursor.first };
@@ -287,42 +297,74 @@ document.onkeydown = (e) => {
       ArrowUp: { x: 0, y: -1 },
       ArrowDown: { x: 0, y: 1 },
     };
+
     for (const cursor of state.cursors) {
-      // @ts-expect-error too lazy to solve this rn
-      cursor.first.x += dirs[e.key].x;
-      // @ts-expect-error too lazy to solve this rn
-      cursor.first.y += dirs[e.key].y;
+      if (e.shiftKey) {
+        // @ts-expect-error too lazy to solve this rn
+        cursor.second.x += dirs[e.key].x;
+        // @ts-expect-error too lazy to solve this rn
+        cursor.second.y += dirs[e.key].y;
 
-      cursor.first.y = Math.min(Math.max(0, cursor.first.y), lines.length - 1);
+        if (cursor.second.y < 0) {
+          cursor.second.y = 0;
+          cursor.second.x = 0;
+        } else if (cursor.second.y >= lines.length) {
+          cursor.second.y = lines.length - 1;
+          cursor.second.x = lines[lines.length - 1].length;
+        }
 
-      if (cursor.first.x === -1 && cursor.first.y > 0) {
-        // go to line above
-        cursor.first.y -= 1;
-        cursor.first.x = lines[cursor.first.y].length;
+        if (cursor.second.x === -1 && cursor.second.y > 0) {
+          // go to line above
+          cursor.second.y -= 1;
+          cursor.second.x = lines[cursor.second.y].length;
+        }
+        if (cursor.second.x === lines[cursor.second.y].length + 1) {
+          // go to line below
+          cursor.second.y += 1;
+          cursor.second.x = 0;
+        }
+      } else {
+        // @ts-expect-error too lazy to solve this rn
+        cursor.first.x += dirs[e.key].x;
+        // @ts-expect-error too lazy to solve this rn
+        cursor.first.y += dirs[e.key].y;
+
+        if (cursor.first.y < 0) {
+          cursor.first.y = 0;
+          cursor.first.x = 0;
+        } else if (cursor.first.y >= lines.length) {
+          cursor.first.y = lines.length - 1;
+          cursor.first.x = lines[lines.length - 1].length;
+        }
+
+        if (cursor.first.x === -1 && cursor.first.y > 0) {
+          // go to line above
+          cursor.first.y -= 1;
+          cursor.first.x = lines[cursor.first.y].length;
+        }
+        if (cursor.first.x === lines[cursor.first.y].length + 1) {
+          // go to line below
+          cursor.first.y += 1;
+          cursor.first.x = 0;
+        }
+        cursor.second = { ...cursor.first };
       }
-      if (cursor.first.x === lines[cursor.first.y].length + 1) {
-        // go to line below
-        cursor.first.y += 1;
-        cursor.first.x = 0;
-      }
-      cursor.second = { ...cursor.first };
     }
   } else {
     if (e.key.length === 1) {
       for (const cursor of state.cursors) {
-        state.text.splice(
-          textIndexFromXY(state.text, cursor.first.x, cursor.first.y),
-          0,
-          e.key,
-        );
+        // delete the chars between first and second
+        const sorted = sortedCursor(cursor);
+        const start = textIndexFromXY(state.text, sorted.left.x, sorted.left.y);
+        const end = textIndexFromXY(state.text, sorted.right.x, sorted.right.y);
+        state.text.splice(start, end - start, e.key);
+        cursor.first = sorted.left;
         cursor.first.x += 1;
         cursor.second = { ...cursor.first };
       }
     }
   }
 };
-
-canvas.onkeydown = (e) => {};
 
 document.fonts.load("20px 'IBM Plex Mono'").then(() => raf());
 
@@ -366,22 +408,13 @@ function sortedCursor(cursor: {
   second: { x: number; y: number };
 }) {
   if (cursor.first.y < cursor.second.y) {
-    return {
-      left: cursor.first,
-      right: cursor.second,
-    };
+    return { left: cursor.first, right: cursor.second };
   }
   if (cursor.first.y > cursor.second.y) {
-    return {
-      left: cursor.second,
-      right: cursor.first,
-    };
+    return { left: cursor.second, right: cursor.first };
   }
   if (cursor.first.x < cursor.second.x) {
-    return {
-      left: cursor.first,
-      right: cursor.second,
-    };
+    return { left: cursor.first, right: cursor.second };
   }
   return { left: cursor.second, right: cursor.first };
 }
