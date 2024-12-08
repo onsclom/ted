@@ -261,7 +261,6 @@ canvas.onblur = () => {
 // i want the text to be a 1d array of chars
 document.onkeydown = (e) => {
   const lines = textAsLines(state.text);
-  const cursorInfo = textToCursorInfo(state.text);
 
   if (e.key === "Backspace") {
     for (const cursor of state.cursors) {
@@ -426,24 +425,6 @@ document.onkeydown = (e) => {
 };
 
 document.fonts.load("20px 'IBM Plex Mono'").then(() => raf());
-
-// takes text as an array of chars and returns the cursor positions after each char
-function textToCursorInfo(text: string[]): {
-  x: number;
-  y: number;
-}[] {
-  let x = 0;
-  let y = 0;
-  return text.map((char) => {
-    if (char === "\n") {
-      x = 0;
-      y += 1;
-    } else {
-      x += 1;
-    }
-    return { x, y };
-  });
-}
 
 function textIndexFromXY(text: string[], x: number, y: number): number {
   let x2 = 0;
