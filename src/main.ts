@@ -1,74 +1,18 @@
 import { assert } from "./assert";
+import { state, textPosToCanvasPos } from "./state";
+import { margins, lineSpacing } from "./constants";
 
-const canvas = document.createElement("canvas");
+export const canvas = document.createElement("canvas");
 document.body.appendChild(canvas);
 canvas.style.cursor = "text";
-const initialText = `Hello world
-second line
-this is a test string`;
-const margins = { x: 10, y: 10 };
 
-const state = {
-  cursors: [] as {
-    first: {
-      // in text coords
-      text: { x: number; y: number };
-      // in canvas coords
-      animated: { x: number; y: number };
-    };
-    second: {
-      // in text coords
-      text: { x: number; y: number };
-      // in canvas coords
-      animated: { x: number; y: number };
-    };
-  }[],
-  text: initialText.split(""),
-  charRect: { width: 0, height: 0 },
-  cursorDown: false,
-};
-
-state.cursors = [
-  {
-    first: {
-      text: { x: 0, y: 0 },
-      animated: textPosToCanvasPos({ x: 0, y: 0 }),
-    },
-    second: {
-      text: { x: 0, y: 0 },
-      animated: textPosToCanvasPos({ x: 0, y: 0 }),
-    },
-  },
-];
-
-function textPosToCanvasPos(textPos: { x: number; y: number }) {
-  return {
-    x: textPos.x * state.charRect.width + margins.x,
-    y: textPos.y * state.charRect.height + margins.y,
-  };
-}
-
-const lineSpacing = 1.815;
-
-function textAsLines(text: string[]) {
-  const lines: string[][] = [];
-  let line: string[] = [];
-  for (const char of text) {
-    if (char === "\n") {
-      lines.push(line);
-      line = [];
-    } else {
-      line.push(char);
-    }
-  }
-  lines.push(line);
-  return lines;
-}
-
+// prevent FOUC
+document.fonts.load("20px 'IBM Plex Mono'").then(() => raf());
 function raf() {
-  // TODO: move this to only happen on click?
-  // correct cursors
-  const lineText = textAsLines(state.text);
+  const lineText = state.text
+    .map((char) => char.char)
+    .join("")
+    .split("\n");
   for (const cursor of state.cursors) {
     // correct y
     const lines = lineText.length;
@@ -117,6 +61,24 @@ function raf() {
       (secondTarget.x - cursor.second.animated.x) * animateRatio;
     cursor.second.animated.y +=
       (secondTarget.y - cursor.second.animated.y) * animateRatio;
+  }
+
+  {
+    // animate letters
+    let x = 0;
+    let y = 0;
+    for (const char of state.text) {
+      const target = textPosToCanvasPos({ x, y });
+      const animateRatio = 0.2;
+      char.animated.x += (target.x - char.animated.x) * animateRatio;
+      char.animated.y += (target.y - char.animated.y) * animateRatio;
+      if (char.char === "\n") {
+        x = 0;
+        y += 1;
+      } else {
+        x += 1;
+      }
+    }
   }
 
   const bounds = canvas.getBoundingClientRect();
@@ -192,15 +154,15 @@ function raf() {
     let x = 0;
     let y = 0;
     for (const char of state.text) {
-      if (char === "\n") {
+      if (char.char === "\n") {
         x = 0;
         y += 1;
       } else {
         const verticalPadding = (state.charRect.height - charHeight) / 2;
         ctx.fillText(
-          char,
-          margins.x + x * state.charRect.width,
-          margins.y + y * state.charRect.height + verticalPadding,
+          char.char,
+          char.animated.x,
+          char.animated.y + verticalPadding,
         );
         x += 1;
       }
@@ -257,24 +219,20 @@ canvas.onblur = () => {
   state.cursors = [];
 };
 
-// okay.. to support key press interactions
-// i want the text to be a 1d array of chars
 document.onkeydown = (e) => {
-  const lines = textAsLines(state.text);
+  const chars = state.text.map((char) => char.char);
+  const lines = chars.join("").split("\n");
 
   if (e.key === "Backspace") {
     for (const cursor of state.cursors) {
-      // if first === start, delete the char before start
-
       const cursorsSame =
         cursor.first.text.x === cursor.second.text.x &&
         cursor.first.text.y === cursor.second.text.y;
       if (cursorsSame) {
-        // delete the char before start
         let x = 0;
         let y = 0;
         for (let i = 0; i <= state.text.length; i++) {
-          const char = state.text[i];
+          const char = state.text[i].char;
           if (
             (x === cursor.first.text.x - 1 && y === cursor.first.text.y) ||
             (char === "\n" &&
@@ -302,12 +260,12 @@ document.onkeydown = (e) => {
       else {
         const sorted = sortedCursor(cursor);
         const start = textIndexFromXY(
-          state.text,
+          chars,
           sorted.left.text.x,
           sorted.left.text.y,
         );
         const end = textIndexFromXY(
-          state.text,
+          chars,
           sorted.right.text.x,
           sorted.right.text.y,
         );
@@ -322,16 +280,19 @@ document.onkeydown = (e) => {
       const sorted = sortedCursor(cursor);
       // delete the chars between first and second
       const start = textIndexFromXY(
-        state.text,
+        chars,
         sorted.left.text.x,
         sorted.left.text.y,
       );
       const end = textIndexFromXY(
-        state.text,
+        chars,
         sorted.right.text.x,
         sorted.right.text.y,
       );
-      state.text.splice(start, end - start, "\n");
+      state.text.splice(start, end - start, {
+        char: "\n",
+        animated: textPosToCanvasPos(sorted.left.text),
+      });
       cursor.first.text = { ...sorted.left.text };
       cursor.first.text.x = 0;
       cursor.first.text.y += 1;
@@ -406,16 +367,19 @@ document.onkeydown = (e) => {
         // delete the chars between first and second
         const sorted = sortedCursor(cursor);
         const start = textIndexFromXY(
-          state.text,
+          chars,
           sorted.left.text.x,
           sorted.left.text.y,
         );
         const end = textIndexFromXY(
-          state.text,
+          chars,
           sorted.right.text.x,
           sorted.right.text.y,
         );
-        state.text.splice(start, end - start, e.key);
+        state.text.splice(start, end - start, {
+          char: e.key,
+          animated: textPosToCanvasPos(sorted.left.text),
+        });
         cursor.first.text = { ...sorted.left.text };
         cursor.first.text.x += 1;
         cursor.second.text = { ...cursor.first.text };
@@ -423,8 +387,6 @@ document.onkeydown = (e) => {
     }
   }
 };
-
-document.fonts.load("20px 'IBM Plex Mono'").then(() => raf());
 
 function textIndexFromXY(text: string[], x: number, y: number): number {
   let x2 = 0;
