@@ -310,7 +310,6 @@ document.onkeydown = (e) => {
 
     for (const cursor of state.cursors) {
       if (e.shiftKey) {
-        console.log("moving with shift");
         // @ts-expect-error too lazy to solve this rn
         cursor.second.text.x += dirs[e.key].x;
         // @ts-expect-error too lazy to solve this rn
