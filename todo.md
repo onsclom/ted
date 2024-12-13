@@ -1,5 +1,4 @@
 - animate things:
-  - letter movement
   - letter inserts
   - letter deletes
   - cursor blinking
@@ -9,3 +8,9 @@
   - opt
 - double click to select word
 - triple click to select line
+- cmd/ctrl + z to undo
+- scrolling ?
+- ctrl/cmd + a
+- open/close files?
+- make electron/tauri app
+- vim mode

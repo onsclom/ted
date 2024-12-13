@@ -43,13 +43,7 @@ function textToTextState(text: string) {
     char: string;
     animated: { x: number; y: number };
   }[];
-  let x = 0;
-  let y = 0;
   for (let i = 0; i < chars.length; i++) {
-    if (chars[i] === "\n") {
-      x = 0;
-      y++;
-    }
     charState.push({
       char: chars[i],
       // animated: textPosToCanvasPos({ x: x++, y }),
