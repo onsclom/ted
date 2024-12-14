@@ -1,6 +1,7 @@
 import { assert } from "./assert";
 import { state, textPosToCanvasPos } from "./state";
-import { canvas, sortedCursor } from "./main";
+import { sortedCursor } from "./utils";
+import { canvas } from "./canvas";
 import { lineSpacing } from "./constants";
 
 // prevent FOUC

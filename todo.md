@@ -1,4 +1,5 @@
 - limit animation distance
+- make tab and shift+tab work like code editors
 - animate things:
   - letter inserts
   - letter deletes
@@ -9,7 +10,6 @@
 - double click to select word
 - triple click to select line
 - cmd/ctrl + z to undo
-- scrolling ?
 - ctrl/cmd + a
 - open/close files?
 - make electron/tauri app

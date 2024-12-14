@@ -1,7 +1,7 @@
 import { state, textPosToCanvasPos } from "./state";
 import { margins } from "./constants";
-import { sortedCursor, textIndexFromXY } from "./main";
-import { canvas } from "./main";
+import { sortedCursor, textIndexFromXY } from "./utils";
+import { canvas } from "./canvas";
 
 document.body.onload = () => {
   canvas.onpointerdown = (e) => {
@@ -62,7 +62,10 @@ document.body.onload = () => {
     state.cursors = [];
   };
 
+  document.body.style.overscrollBehaviorX = "none";
+  document.documentElement.style.overscrollBehaviorX = "none";
   document.onwheel = (e) => {
+    e.preventDefault();
     const dy = e.deltaY;
     const dx = e.deltaX;
     // if (Math.abs(dy) > Math.abs(dx)) {
