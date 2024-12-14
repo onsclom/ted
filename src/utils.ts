@@ -29,3 +29,21 @@ export function sortedCursor(cursor: (typeof state.cursors)[0]) {
   }
   return { left: cursor.second, right: cursor.first };
 }
+
+export function animated(
+  cur: { x: number; y: number },
+  target: { x: number; y: number },
+) {
+  const res = { x: cur.x, y: cur.y };
+  const animateRatio = 0.2;
+  res.x += (target.x - res.x) * animateRatio;
+  res.y += (target.y - res.y) * animateRatio;
+  const maxDistance = 30;
+  const toMove = { x: target.x - res.x, y: target.y - res.y };
+  const dist = Math.hypot(toMove.x, toMove.y);
+  if (dist > maxDistance) {
+    res.x = target.x - (toMove.x / dist) * maxDistance;
+    res.y = target.y - (toMove.y / dist) * maxDistance;
+  }
+  return res;
+}

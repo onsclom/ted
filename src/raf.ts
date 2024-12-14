@@ -1,6 +1,6 @@
 import { assert } from "./assert";
 import { state, textPosToCanvasPos } from "./state";
-import { sortedCursor } from "./utils";
+import { animated, sortedCursor } from "./utils";
 import { canvas } from "./canvas";
 import { lineSpacing } from "./constants";
 
@@ -55,18 +55,10 @@ function raf() {
       cursor.second.text.x = 0;
     }
 
-    // animate cursor
     const firstTarget = textPosToCanvasPos(cursor.first.text);
+    cursor.first.animated = animated(cursor.first.animated, firstTarget);
     const secondTarget = textPosToCanvasPos(cursor.second.text);
-    const animateRatio = 0.2;
-    cursor.first.animated.x +=
-      (firstTarget.x - cursor.first.animated.x) * animateRatio;
-    cursor.first.animated.y +=
-      (firstTarget.y - cursor.first.animated.y) * animateRatio;
-    cursor.second.animated.x +=
-      (secondTarget.x - cursor.second.animated.x) * animateRatio;
-    cursor.second.animated.y +=
-      (secondTarget.y - cursor.second.animated.y) * animateRatio;
+    cursor.second.animated = animated(cursor.second.animated, secondTarget);
   }
 
   {
@@ -75,9 +67,7 @@ function raf() {
     let y = 0;
     for (const char of state.text) {
       const target = textPosToCanvasPos({ x, y });
-      const animateRatio = 0.2;
-      char.animated.x += (target.x - char.animated.x) * animateRatio;
-      char.animated.y += (target.y - char.animated.y) * animateRatio;
+      char.animated = animated(char.animated, target);
       if (char.char === "\n") {
         x = 0;
         y += 1;
