@@ -21,6 +21,12 @@ export const state = {
   }[],
   cursorLastChangeTime: 0,
   text: textToTextState(initialText),
+  letterGraveyard: [] as {
+    char: string;
+    x: number;
+    y: number;
+    timeDead: number;
+  }[],
   charRect: { width: 0, height: 0 },
   cursorDown: false,
   scrolly: 0,

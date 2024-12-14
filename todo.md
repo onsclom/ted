@@ -1,4 +1,3 @@
-- limit animation distance
 - make tab and shift+tab work like code editors
 - animate things:
   - letter inserts

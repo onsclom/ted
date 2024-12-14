@@ -14,6 +14,13 @@ function raf() {
   const dt = now - lastTime;
   lastTime = now;
 
+  for (let i = state.letterGraveyard.length - 1; i >= 0; i--) {
+    state.letterGraveyard[i].timeDead += dt;
+    if (state.letterGraveyard[i].timeDead > 100) {
+      state.letterGraveyard.splice(i, 1);
+    }
+  }
+
   const lineText = state.text
     .map((char) => char.char)
     .join("")
@@ -173,6 +180,16 @@ function raf() {
     ctx.restore();
   }
 
+  const verticalPadding = (state.charRect.height - charHeight) / 2;
+  // draw letter graveyard
+  state.letterGraveyard.forEach((char) => {
+    ctx.fillStyle = "black";
+    const deadTime = 100;
+    ctx.globalAlpha = Math.max(0, 1 - char.timeDead / deadTime);
+    ctx.fillText(char.char, char.x, char.y + verticalPadding);
+  });
+  ctx.globalAlpha = 1;
+
   ctx.fillStyle = "black";
   // print all chars
   {
@@ -183,7 +200,6 @@ function raf() {
         x = 0;
         y += 1;
       } else {
-        const verticalPadding = (state.charRect.height - charHeight) / 2;
         ctx.fillText(
           char.char,
           char.animated.x,

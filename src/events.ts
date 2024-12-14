@@ -102,7 +102,13 @@ document.body.onload = () => {
                 cursor.first.text.x === 0 &&
                 y === cursor.first.text.y - 1)
             ) {
-              state.text.splice(i, 1);
+              const removed = state.text.splice(i, 1);
+              state.letterGraveyard.push({
+                char: removed[0].char,
+                x: removed[0].animated.x,
+                y: removed[0].animated.y,
+                timeDead: 0,
+              });
               cursor.first.text.x -= 1;
               if (cursor.first.text.x < 0) {
                 cursor.first.text.y -= 1;
@@ -132,7 +138,15 @@ document.body.onload = () => {
             sorted.right.text.x,
             sorted.right.text.y,
           );
-          state.text.splice(start, end - start);
+          const removed = state.text.splice(start, end - start);
+          for (const char of removed) {
+            state.letterGraveyard.push({
+              char: char.char,
+              x: char.animated.x,
+              y: char.animated.y,
+              timeDead: 0,
+            });
+          }
           cursor.first.text = { ...sorted.left.text };
           cursor.second.text = { ...sorted.left.text };
         }
@@ -152,10 +166,18 @@ document.body.onload = () => {
           sorted.right.text.x,
           sorted.right.text.y,
         );
-        state.text.splice(start, end - start, {
+        const removed = state.text.splice(start, end - start, {
           char: "\n",
           animated: textPosToCanvasPos(sorted.left.text),
         });
+        for (const char of removed) {
+          state.letterGraveyard.push({
+            char: char.char,
+            x: char.animated.x,
+            y: char.animated.y,
+            timeDead: 0,
+          });
+        }
         cursor.first.text = { ...sorted.left.text };
         cursor.first.text.x = 0;
         cursor.first.text.y += 1;
@@ -238,10 +260,18 @@ document.body.onload = () => {
             sorted.right.text.x,
             sorted.right.text.y,
           );
-          state.text.splice(start, end - start, {
+          const removed = state.text.splice(start, end - start, {
             char: e.key,
             animated: textPosToCanvasPos(sorted.left.text),
           });
+          for (const char of removed) {
+            state.letterGraveyard.push({
+              char: char.char,
+              x: char.animated.x,
+              y: char.animated.y,
+              timeDead: 0,
+            });
+          }
           cursor.first.text = { ...sorted.left.text };
           cursor.first.text.x += 1;
           cursor.second.text = { ...cursor.first.text };
