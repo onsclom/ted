@@ -19,6 +19,7 @@ export const state = {
       animated: { x: number; y: number };
     };
   }[],
+  cursorLastChangeTime: 0,
   text: textToTextState(initialText),
   charRect: { width: 0, height: 0 },
   cursorDown: false,

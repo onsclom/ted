@@ -6,11 +6,17 @@ import { lineSpacing } from "./constants";
 // prevent FOUC
 document.fonts.load("20px 'IBM Plex Mono'").then(() => raf());
 
+let lastTime = performance.now();
 function raf() {
+  const now = performance.now();
+  const dt = now - lastTime;
+  lastTime = now;
+
   const lineText = state.text
     .map((char) => char.char)
     .join("")
     .split("\n");
+  state.cursorLastChangeTime += dt;
   for (const cursor of state.cursors) {
     // correct y
     const lines = lineText.length;
@@ -97,53 +103,61 @@ function raf() {
 
   ctx.fillStyle = "#adf";
   ctx.lineWidth = 2;
-  // draw cursor
-  for (const cursor of state.cursors) {
-    const sorted = sortedCursor(cursor);
+  // draw cursors
+  {
+    ctx.save();
+    const cursorStartsBlinking = 1000;
+    const blinkRate = 200;
+    if (state.cursorLastChangeTime > cursorStartsBlinking) {
+      const time = state.cursorLastChangeTime - cursorStartsBlinking;
+      ctx.globalAlpha = Math.cos(time / blinkRate) * 0.5 + 0.5;
+    }
+    for (const cursor of state.cursors) {
+      const sorted = sortedCursor(cursor);
 
-    ctx.strokeStyle = "#55e";
+      ctx.strokeStyle = "#55e";
 
-    const dirSize =
-      sorted.left.text.x === sorted.right.text.x &&
-      sorted.left.text.y === sorted.right.text.y
-        ? 0
-        : 0.5;
-    // draw cursor line
-    ctx.beginPath();
-    ctx.moveTo(
-      sorted.left.animated.x + state.charRect.width * dirSize,
-      sorted.left.animated.y,
-    );
-    ctx.lineTo(sorted.left.animated.x, sorted.left.animated.y);
-    ctx.lineTo(
-      sorted.left.animated.x,
-      sorted.left.animated.y + state.charRect.height,
-    );
-    ctx.lineTo(
-      sorted.left.animated.x + state.charRect.width * dirSize,
-      sorted.left.animated.y + state.charRect.height,
-    );
+      const dirSize =
+        sorted.left.text.x === sorted.right.text.x &&
+        sorted.left.text.y === sorted.right.text.y
+          ? 0
+          : 0.5;
+      // draw cursor line
+      ctx.beginPath();
+      ctx.moveTo(
+        sorted.left.animated.x + state.charRect.width * dirSize,
+        sorted.left.animated.y,
+      );
+      ctx.lineTo(sorted.left.animated.x, sorted.left.animated.y);
+      ctx.lineTo(
+        sorted.left.animated.x,
+        sorted.left.animated.y + state.charRect.height,
+      );
+      ctx.lineTo(
+        sorted.left.animated.x + state.charRect.width * dirSize,
+        sorted.left.animated.y + state.charRect.height,
+      );
+      ctx.stroke();
 
-    ctx.stroke();
-
-    // draw second
-    ctx.beginPath();
-
-    // draw using animated pos
-    ctx.moveTo(
-      sorted.right.animated.x + state.charRect.width * -dirSize,
-      sorted.right.animated.y,
-    );
-    ctx.lineTo(sorted.right.animated.x, sorted.right.animated.y);
-    ctx.lineTo(
-      sorted.right.animated.x,
-      sorted.right.animated.y + state.charRect.height,
-    );
-    ctx.lineTo(
-      sorted.right.animated.x + state.charRect.width * -dirSize,
-      sorted.right.animated.y + state.charRect.height,
-    );
-    ctx.stroke();
+      // draw second
+      ctx.beginPath();
+      // draw using animated pos
+      ctx.moveTo(
+        sorted.right.animated.x + state.charRect.width * -dirSize,
+        sorted.right.animated.y,
+      );
+      ctx.lineTo(sorted.right.animated.x, sorted.right.animated.y);
+      ctx.lineTo(
+        sorted.right.animated.x,
+        sorted.right.animated.y + state.charRect.height,
+      );
+      ctx.lineTo(
+        sorted.right.animated.x + state.charRect.width * -dirSize,
+        sorted.right.animated.y + state.charRect.height,
+      );
+      ctx.stroke();
+    }
+    ctx.restore();
   }
 
   ctx.fillStyle = "black";

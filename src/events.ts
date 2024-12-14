@@ -7,6 +7,7 @@ document.body.onload = () => {
   canvas.onpointerdown = (e) => {
     canvas.setPointerCapture(e.pointerId);
     state.cursorDown = true;
+    state.cursorLastChangeTime = 0;
     // figure out which char the cursor should be at
     const x = Math.max(
       Math.round((e.clientX - margins.x) / state.charRect.width),
@@ -53,6 +54,11 @@ document.body.onload = () => {
   };
 
   document.onkeydown = (e) => {
+    if (e.metaKey || e.ctrlKey) {
+      return;
+    }
+
+    state.cursorLastChangeTime = 0;
     const chars = state.text.map((char) => char.char);
     const lines = chars.join("").split("\n");
 

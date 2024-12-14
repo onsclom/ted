@@ -1,7 +1,7 @@
+- limit animation distance
 - animate things:
   - letter inserts
   - letter deletes
-  - cursor blinking
   - cursor pos
 - movement modifiers:
   - cmd
