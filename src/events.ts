@@ -169,6 +169,7 @@ document.body.onload = () => {
         const removed = state.text.splice(start, end - start, {
           char: "\n",
           animated: textPosToCanvasPos(sorted.left.text),
+          lifetime: 0,
         });
         for (const char of removed) {
           state.letterGraveyard.push({
@@ -263,6 +264,7 @@ document.body.onload = () => {
           const removed = state.text.splice(start, end - start, {
             char: e.key,
             animated: textPosToCanvasPos(sorted.left.text),
+            lifetime: 0,
           });
           for (const char of removed) {
             state.letterGraveyard.push({

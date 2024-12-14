@@ -20,6 +20,9 @@ function raf() {
       state.letterGraveyard.splice(i, 1);
     }
   }
+  state.text.forEach((char) => {
+    char.lifetime += dt;
+  });
 
   const lineText = state.text
     .map((char) => char.char)
@@ -196,6 +199,8 @@ function raf() {
     let x = 0;
     let y = 0;
     for (const char of state.text) {
+      const animateInTime = 100;
+      ctx.globalAlpha = Math.min(1, char.lifetime / animateInTime);
       if (char.char === "\n") {
         x = 0;
         y += 1;
@@ -208,6 +213,7 @@ function raf() {
         x += 1;
       }
     }
+    ctx.globalAlpha = 1;
   }
   requestAnimationFrame(raf);
 }

@@ -51,12 +51,14 @@ function textToTextState(text: string) {
   const charState = [] as {
     char: string;
     animated: { x: number; y: number };
+    lifetime: number;
   }[];
   for (let i = 0; i < chars.length; i++) {
     charState.push({
       char: chars[i],
       // animated: textPosToCanvasPos({ x: x++, y }),
       animated: { x: 0, y: 0 }, // TODO: fix later
+      lifetime: 0,
     });
   }
   return charState;
