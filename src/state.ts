@@ -23,6 +23,8 @@ export const state = {
   text: textToTextState(initialText),
   charRect: { width: 0, height: 0 },
   cursorDown: false,
+  scrolly: 0,
+  scrollx: 0,
 };
 
 state.cursors = [

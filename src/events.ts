@@ -10,11 +10,15 @@ document.body.onload = () => {
     state.cursorLastChangeTime = 0;
     // figure out which char the cursor should be at
     const x = Math.max(
-      Math.round((e.clientX - margins.x) / state.charRect.width),
+      Math.round(
+        (e.clientX - margins.x + state.scrollx) / state.charRect.width,
+      ),
       0,
     );
     const y = Math.max(
-      Math.floor((e.clientY - margins.y) / state.charRect.height),
+      Math.floor(
+        (e.clientY - margins.y + state.scrolly) / state.charRect.height,
+      ),
       0,
     );
     if (state.cursors.length > 1) {
@@ -35,13 +39,18 @@ document.body.onload = () => {
   };
 
   canvas.onpointermove = (e) => {
+    state.cursorLastChangeTime = 0;
     if (state.cursors.length === 1 && state.cursorDown) {
       const x = Math.max(
-        Math.round((e.clientX - margins.x) / state.charRect.width),
+        Math.round(
+          (e.clientX - margins.x + state.scrollx) / state.charRect.width,
+        ),
         0,
       );
       const y = Math.max(
-        Math.floor((e.clientY - margins.y) / state.charRect.height),
+        Math.floor(
+          (e.clientY - margins.y + state.scrolly) / state.charRect.height,
+        ),
         0,
       );
       state.cursors[0].second.text = { x, y };
@@ -51,6 +60,18 @@ document.body.onload = () => {
   canvas.onblur = () => {
     state.cursorDown = false;
     state.cursors = [];
+  };
+
+  document.onwheel = (e) => {
+    const dy = e.deltaY;
+    const dx = e.deltaX;
+    // if (Math.abs(dy) > Math.abs(dx)) {
+    state.scrolly += dy;
+    // } else {
+    state.scrollx += dx;
+    // }
+    // state.targetScrollY = Math.max(state.targetScrollY, 0);
+    // state.targetScrollX = Math.max(state.targetScrollX, 0);
   };
 
   document.onkeydown = (e) => {

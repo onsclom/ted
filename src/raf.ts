@@ -5,6 +5,7 @@ import { lineSpacing } from "./constants";
 
 // prevent FOUC
 document.fonts.load("20px 'IBM Plex Mono'").then(() => raf());
+const blue = "#55e";
 
 let lastTime = performance.now();
 function raf() {
@@ -85,6 +86,13 @@ function raf() {
     }
   }
 
+  if (state.scrollx < 0) {
+    state.scrollx = 0;
+  }
+  if (state.scrolly < 0) {
+    state.scrolly = 0;
+  }
+
   const bounds = canvas.getBoundingClientRect();
   canvas.width = bounds.width * devicePixelRatio;
   canvas.height = bounds.height * devicePixelRatio;
@@ -92,6 +100,20 @@ function raf() {
   const ctx = canvas.getContext("2d");
   assert(ctx);
   ctx.scale(devicePixelRatio, devicePixelRatio);
+  ctx.translate(-state.scrollx, -state.scrolly);
+
+  ctx.strokeStyle = blue;
+  // draw line at top of document
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(state.scrollx, 0);
+  ctx.lineTo(state.scrollx + bounds.width, 0);
+  ctx.stroke();
+  // draw line left of document
+  ctx.beginPath();
+  ctx.moveTo(0, state.scrolly);
+  ctx.lineTo(0, state.scrolly + bounds.height);
+  ctx.stroke();
 
   const charHeight = 20;
   ctx.font = `${charHeight}px 'IBM Plex Mono'`;
@@ -115,7 +137,7 @@ function raf() {
     for (const cursor of state.cursors) {
       const sorted = sortedCursor(cursor);
 
-      ctx.strokeStyle = "#55e";
+      ctx.strokeStyle = blue;
 
       const dirSize =
         sorted.left.text.x === sorted.right.text.x &&
