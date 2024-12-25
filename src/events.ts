@@ -39,8 +39,8 @@ document.body.onload = () => {
   };
 
   canvas.onpointermove = (e) => {
-    state.cursorLastChangeTime = 0;
     if (state.cursors.length === 1 && state.cursorDown) {
+      state.cursorLastChangeTime = 0;
       const x = Math.max(
         Math.round(
           (e.clientX - margins.x + state.scrollx) / state.charRect.width,
@@ -78,37 +78,144 @@ document.body.onload = () => {
   };
 
   document.onkeydown = (e) => {
+    state.cursorLastChangeTime = 0;
+
     const hotkey = e.metaKey || e.ctrlKey;
+    if (hotkey) {
+      switch (e.key) {
+        case "a": {
+          // select all
+          while (state.cursors.length > 1) {
+            state.cursors.pop();
+          }
+          if (state.cursors.length === 0) {
+            state.cursors.push({
+              first: {
+                text: { x: 0, y: 0 },
+                animated: textPosToCanvasPos({ x: 0, y: 0 }),
+              },
+              second: {
+                text: { x: 0, y: 0 },
+                animated: textPosToCanvasPos({ x: 0, y: 0 }),
+              },
+            });
+          }
+          state.cursors[0].first.text = { x: 0, y: 0 };
+          state.cursors[0].second.text = {
+            x: state.text.length,
+            y: state.text.length - 1,
+          };
+          break;
+        }
+        case "c": {
+          // copy
+          const sorted = sortedCursor(state.cursors[0]);
+          const start = textIndexFromXY(
+            state.text.map((char) => char.char),
+            sorted.left.text.x,
+            sorted.left.text.y,
+          );
+          const end = textIndexFromXY(
+            state.text.map((char) => char.char),
+            sorted.right.text.x,
+            sorted.right.text.y,
+          );
+          const copy = state.text.slice(start, end).map((char) => char.char);
+          navigator.clipboard.writeText(copy.join("")).then(() => {
+            console.log("copied");
+          });
+          break;
+        }
+        case "x": {
+          // cut
+          const sorted = sortedCursor(state.cursors[0]);
+          const start = textIndexFromXY(
+            state.text.map((char) => char.char),
+            sorted.left.text.x,
+            sorted.left.text.y,
+          );
+          const end = textIndexFromXY(
+            state.text.map((char) => char.char),
+            sorted.right.text.x,
+            sorted.right.text.y,
+          );
+          const removed = state.text.splice(start, end - start);
+          for (const char of removed) {
+            state.letterGraveyard.push({
+              char: char.char,
+              x: char.animated.x,
+              y: char.animated.y,
+              timeDead: 0,
+            });
+          }
+          state.cursors[0].first.text = { ...sorted.left.text };
+          state.cursors[0].second.text = { ...sorted.left.text };
+          navigator.clipboard
+            .writeText(removed.map((char) => char.char).join(""))
+            .then(() => {
+              console.log("cut");
+            });
+          break;
+        }
+        case "v": {
+          // paste
+          navigator.clipboard.readText().then((text) => {
+            const chars = text.split("");
+            for (const cursor of state.cursors) {
+              const sorted = sortedCursor(cursor);
+              const start = textIndexFromXY(
+                state.text.map((char) => char.char),
+                sorted.left.text.x,
+                sorted.left.text.y,
+              );
+              const end = textIndexFromXY(
+                state.text.map((char) => char.char),
+                sorted.right.text.x,
+                sorted.right.text.y,
+              );
+              const removed = state.text.splice(start, end - start);
+              for (const char of removed) {
+                state.letterGraveyard.push({
+                  char: char.char,
+                  x: char.animated.x,
+                  y: char.animated.y,
+                  timeDead: 0,
+                });
+              }
+              // insert the new chars
+              // cons
+              {
+                let i = start;
+                let yOff = 0;
+                for (const char of chars) {
+                  state.text.splice(i, 0, {
+                    char,
+                    animated: textPosToCanvasPos(sorted.left.text),
+                    lifetime: 0,
+                  });
+                  i += 1;
+                  sorted.left.text.x += 1;
+                  if (char === "\n") {
+                    sorted.left.text.x = 0;
+                    sorted.left.text.y += 1;
+                    yOff += 1;
+                  }
+                }
+              }
 
-    if (hotkey && e.key === "a") {
-      // select all
-      while (state.cursors.length > 1) {
-        state.cursors.pop();
+              cursor.first.text = { ...sorted.left.text };
+              cursor.first.text.x += chars.length;
+              cursor.second.text = { ...cursor.first.text };
+            }
+          });
+          break;
+        }
       }
-      if (state.cursors.length === 0) {
-        state.cursors.push({
-          first: {
-            text: { x: 0, y: 0 },
-            animated: textPosToCanvasPos({ x: 0, y: 0 }),
-          },
-          second: {
-            text: { x: 0, y: 0 },
-            animated: textPosToCanvasPos({ x: 0, y: 0 }),
-          },
-        });
-      }
-      state.cursors[0].first.text = { x: 0, y: 0 };
-      state.cursors[0].second.text = {
-        x: state.text.length,
-        y: state.text.length - 1,
-      };
     }
-
     if (hotkey) {
       return;
     }
 
-    state.cursorLastChangeTime = 0;
     const chars = state.text.map((char) => char.char);
     const lines = chars.join("").split("\n");
 
