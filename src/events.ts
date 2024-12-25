@@ -78,7 +78,33 @@ document.body.onload = () => {
   };
 
   document.onkeydown = (e) => {
-    if (e.metaKey || e.ctrlKey) {
+    const hotkey = e.metaKey || e.ctrlKey;
+
+    if (hotkey && e.key === "a") {
+      // select all
+      while (state.cursors.length > 1) {
+        state.cursors.pop();
+      }
+      if (state.cursors.length === 0) {
+        state.cursors.push({
+          first: {
+            text: { x: 0, y: 0 },
+            animated: textPosToCanvasPos({ x: 0, y: 0 }),
+          },
+          second: {
+            text: { x: 0, y: 0 },
+            animated: textPosToCanvasPos({ x: 0, y: 0 }),
+          },
+        });
+      }
+      state.cursors[0].first.text = { x: 0, y: 0 };
+      state.cursors[0].second.text = {
+        x: state.text.length,
+        y: state.text.length - 1,
+      };
+    }
+
+    if (hotkey) {
       return;
     }
 

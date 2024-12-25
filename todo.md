@@ -1,15 +1,16 @@
+- cmd + delete (deletes to beginning of line)
 - make tab and shift+tab work like code editors
-- animate things:
-  - letter inserts
-  - letter deletes
-  - cursor pos
 - movement modifiers:
   - cmd
   - opt
 - double click to select word
 - triple click to select line
 - cmd/ctrl + z to undo
-- ctrl/cmd + a
 - open/close files?
 - make electron/tauri app
 - vim mode
+
+- fix bug case:
+`bug case:
+
+start cursor after b and press down`
