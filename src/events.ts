@@ -3,7 +3,47 @@ import { margins } from "./constants";
 import { sortedCursor, textIndexFromXY } from "./utils";
 import { canvas } from "./canvas";
 
-const DOUBLE_CLICK_TIME = 500; // This can stay as a constant
+const DOUBLE_CLICK_TIME = 500;
+
+// Helper functions
+const getTextCoords = (clientX: number, clientY: number) => ({
+  x: Math.max(
+    Math.round((clientX - margins.x + state.scrollx) / state.charRect.width),
+    0,
+  ),
+  y: Math.max(
+    Math.floor((clientY - margins.y + state.scrolly) / state.charRect.height),
+    0,
+  ),
+});
+
+const handleClipboardOp = async (type: "copy" | "cut", cursor: any) => {
+  const sorted = sortedCursor(cursor);
+  const chars = state.text.map((char) => char.char);
+  const start = textIndexFromXY(chars, sorted.left.text.x, sorted.left.text.y);
+  const end = textIndexFromXY(chars, sorted.right.text.x, sorted.right.text.y);
+
+  const text =
+    type === "cut"
+      ? state.text.splice(start, end - start)
+      : state.text.slice(start, end);
+
+  if (type === "cut") {
+    text.forEach((char) => {
+      state.letterGraveyard.push({
+        char: char.char,
+        x: char.animated.x,
+        y: char.animated.y,
+        timeDead: 0,
+      });
+    });
+    cursor.first.text = { ...sorted.left.text };
+    cursor.second.text = { ...sorted.left.text };
+  }
+
+  await navigator.clipboard.writeText(text.map((char) => char.char).join(""));
+  console.log(type);
+};
 
 document.body.onload = () => {
   canvas.onpointerdown = (e) => {
@@ -12,47 +52,32 @@ document.body.onload = () => {
     state.cursorLastChangeTime = 0;
 
     const now = performance.now();
-    if (now - state.lastClickTime < DOUBLE_CLICK_TIME) {
-      state.clickCount++;
-    } else {
-      state.clickCount = 1;
-    }
+    state.clickCount =
+      now - state.lastClickTime < DOUBLE_CLICK_TIME ? state.clickCount + 1 : 1;
     state.lastClickTime = now;
 
-    // figure out which char the cursor should be at
-    const x = Math.max(
-      Math.round(
-        (e.clientX - margins.x + state.scrollx) / state.charRect.width,
-      ),
-      0,
-    );
-    const y = Math.max(
-      Math.floor(
-        (e.clientY - margins.y + state.scrolly) / state.charRect.height,
-      ),
-      0,
-    );
+    const coords = getTextCoords(e.clientX, e.clientY);
+
     if (state.cursors.length > 1) {
       state.cursors = [
         {
-          first: { text: { x, y }, animated: textPosToCanvasPos({ x, y }) },
-          second: { text: { x, y }, animated: textPosToCanvasPos({ x, y }) },
+          first: { text: coords, animated: textPosToCanvasPos(coords) },
+          second: { text: coords, animated: textPosToCanvasPos(coords) },
         },
       ];
     } else {
-      state.cursors[0].first.text = { x, y };
-      state.cursors[0].second.text = { x, y };
+      state.cursors[0].first.text = coords;
+      state.cursors[0].second.text = coords;
     }
 
     if (state.clickCount === 2) {
-      selectWord(x, y);
+      selectWord(coords.x, coords.y);
     } else if (state.clickCount === 3) {
-      selectLine(y);
-      state.clickCount = 0; // Reset after triple click
+      selectLine(coords.y);
+      state.clickCount = 0;
     }
   };
 
-  // Add these helper functions
   function selectWord(x: number, y: number) {
     const chars = state.text.map((char) => char.char);
     const lines = chars.join("").split("\n");
@@ -60,21 +85,12 @@ document.body.onload = () => {
 
     if (!line) return;
 
-    // Find word boundaries
     let startX = x;
     let endX = x;
 
-    // Search backwards for word start
-    while (startX > 0 && /\w/.test(line[startX - 1])) {
-      startX--;
-    }
+    while (startX > 0 && /\w/.test(line[startX - 1])) startX--;
+    while (endX < line.length && /\w/.test(line[endX])) endX++;
 
-    // Search forwards for word end
-    while (endX < line.length && /\w/.test(line[endX])) {
-      endX++;
-    }
-
-    // Update cursor positions
     state.cursors[0].first.text = { x: startX, y };
     state.cursors[0].second.text = { x: endX, y };
   }
@@ -84,7 +100,6 @@ document.body.onload = () => {
     const lines = chars.join("").split("\n");
 
     if (y >= 0 && y < lines.length) {
-      // Select entire line
       state.cursors[0].first.text = { x: 0, y };
       state.cursors[0].second.text = { x: lines[y].length, y };
     }
@@ -97,19 +112,7 @@ document.body.onload = () => {
   canvas.onpointermove = (e) => {
     if (state.cursors.length === 1 && state.cursorDown) {
       state.cursorLastChangeTime = 0;
-      const x = Math.max(
-        Math.round(
-          (e.clientX - margins.x + state.scrollx) / state.charRect.width,
-        ),
-        0,
-      );
-      const y = Math.max(
-        Math.floor(
-          (e.clientY - margins.y + state.scrolly) / state.charRect.height,
-        ),
-        0,
-      );
-      state.cursors[0].second.text = { x, y };
+      state.cursors[0].second.text = getTextCoords(e.clientX, e.clientY);
     }
   };
 
@@ -122,15 +125,8 @@ document.body.onload = () => {
   document.documentElement.style.overscrollBehaviorX = "none";
   document.onwheel = (e) => {
     e.preventDefault();
-    const dy = e.deltaY;
-    const dx = e.deltaX;
-    // if (Math.abs(dy) > Math.abs(dx)) {
-    state.scrolly += dy;
-    // } else {
-    state.scrollx += dx;
-    // }
-    // state.targetScrollY = Math.max(state.targetScrollY, 0);
-    // state.targetScrollX = Math.max(state.targetScrollX, 0);
+    state.scrolly += e.deltaY;
+    state.scrollx += e.deltaX;
   };
 
   document.onkeydown = (e) => {
@@ -140,10 +136,8 @@ document.body.onload = () => {
     if (hotkey) {
       switch (e.key) {
         case "a": {
-          // select all
-          while (state.cursors.length > 1) {
-            state.cursors.pop();
-          }
+          while (state.cursors.length > 1) state.cursors.pop();
+
           if (state.cursors.length === 0) {
             state.cursors.push({
               first: {
@@ -156,6 +150,7 @@ document.body.onload = () => {
               },
             });
           }
+
           state.cursors[0].first.text = { x: 0, y: 0 };
           state.cursors[0].second.text = {
             x: state.text.length,
@@ -163,58 +158,13 @@ document.body.onload = () => {
           };
           break;
         }
-        case "c": {
-          // copy
-          const sorted = sortedCursor(state.cursors[0]);
-          const start = textIndexFromXY(
-            state.text.map((char) => char.char),
-            sorted.left.text.x,
-            sorted.left.text.y,
-          );
-          const end = textIndexFromXY(
-            state.text.map((char) => char.char),
-            sorted.right.text.x,
-            sorted.right.text.y,
-          );
-          const copy = state.text.slice(start, end).map((char) => char.char);
-          navigator.clipboard.writeText(copy.join("")).then(() => {
-            console.log("copied");
-          });
+        case "c":
+          handleClipboardOp("copy", state.cursors[0]);
           break;
-        }
-        case "x": {
-          // cut
-          const sorted = sortedCursor(state.cursors[0]);
-          const start = textIndexFromXY(
-            state.text.map((char) => char.char),
-            sorted.left.text.x,
-            sorted.left.text.y,
-          );
-          const end = textIndexFromXY(
-            state.text.map((char) => char.char),
-            sorted.right.text.x,
-            sorted.right.text.y,
-          );
-          const removed = state.text.splice(start, end - start);
-          for (const char of removed) {
-            state.letterGraveyard.push({
-              char: char.char,
-              x: char.animated.x,
-              y: char.animated.y,
-              timeDead: 0,
-            });
-          }
-          state.cursors[0].first.text = { ...sorted.left.text };
-          state.cursors[0].second.text = { ...sorted.left.text };
-          navigator.clipboard
-            .writeText(removed.map((char) => char.char).join(""))
-            .then(() => {
-              console.log("cut");
-            });
+        case "x":
+          handleClipboardOp("cut", state.cursors[0]);
           break;
-        }
         case "v": {
-          // paste
           navigator.clipboard.readText().then((text) => {
             const chars = text.split("");
             for (const cursor of state.cursors) {
@@ -238,24 +188,21 @@ document.body.onload = () => {
                   timeDead: 0,
                 });
               }
-              // insert the new chars
-              // cons
-              {
-                let i = start;
-                let yOff = 0;
-                for (const char of chars) {
-                  state.text.splice(i, 0, {
-                    char,
-                    animated: textPosToCanvasPos(sorted.left.text),
-                    lifetime: 0,
-                  });
-                  i += 1;
-                  sorted.left.text.x += 1;
-                  if (char === "\n") {
-                    sorted.left.text.x = 0;
-                    sorted.left.text.y += 1;
-                    yOff += 1;
-                  }
+
+              let i = start;
+              let yOff = 0;
+              for (const char of chars) {
+                state.text.splice(i, 0, {
+                  char,
+                  animated: textPosToCanvasPos(sorted.left.text),
+                  lifetime: 0,
+                });
+                i += 1;
+                sorted.left.text.x += 1;
+                if (char === "\n") {
+                  sorted.left.text.x = 0;
+                  sorted.left.text.y += 1;
+                  yOff += 1;
                 }
               }
 
@@ -268,9 +215,7 @@ document.body.onload = () => {
         }
       }
     }
-    if (hotkey) {
-      return;
-    }
+    if (hotkey) return;
 
     const chars = state.text.map((char) => char.char);
     const lines = chars.join("").split("\n");
@@ -313,9 +258,7 @@ document.body.onload = () => {
               x += 1;
             }
           }
-        }
-        // else, delete the chars between first and second
-        else {
+        } else {
           const sorted = sortedCursor(cursor);
           const start = textIndexFromXY(
             chars,
@@ -341,10 +284,8 @@ document.body.onload = () => {
         }
       }
     } else if (e.key === "Enter") {
-      // add "\n" at cursor position
       for (const cursor of state.cursors) {
         const sorted = sortedCursor(cursor);
-        // delete the chars between first and second
         const start = textIndexFromXY(
           chars,
           sorted.left.text.x,
@@ -384,61 +325,39 @@ document.body.onload = () => {
       };
 
       for (const cursor of state.cursors) {
-        if (e.shiftKey) {
-          // @ts-expect-error too lazy to solve this rn
-          cursor.second.text.x += dirs[e.key].x;
-          // @ts-expect-error too lazy to solve this rn
-          cursor.second.text.y += dirs[e.key].y;
+        const target = e.shiftKey ? cursor.second : cursor.first;
 
-          if (cursor.second.text.y < 0) {
-            cursor.second.text.y = 0;
-            cursor.second.text.x = 0;
-          } else if (cursor.second.text.y >= lines.length) {
-            cursor.second.text.y = lines.length - 1;
-            cursor.second.text.x = lines[lines.length - 1].length;
-          }
+        target.text.x += dirs[e.key].x;
+        target.text.y += dirs[e.key].y;
 
-          if (cursor.second.text.x === -1 && cursor.second.text.y > 0) {
-            // go to line above
-            cursor.second.text.y -= 1;
-            cursor.second.text.x = lines[cursor.second.text.y].length;
-          }
-          if (cursor.second.text.x === lines[cursor.second.text.y].length + 1) {
-            // go to line below
-            cursor.second.text.y += 1;
-            cursor.second.text.x = 0;
-          }
-        } else {
-          // @ts-expect-error too lazy to solve this rn
-          cursor.first.text.x += dirs[e.key].x;
-          // @ts-expect-error too lazy to solve this rn
-          cursor.first.text.y += dirs[e.key].y;
+        if (target.text.y < 0) {
+          target.text.y = 0;
+          target.text.x = 0;
+        } else if (target.text.y >= lines.length) {
+          target.text.y = lines.length - 1;
+          target.text.x = lines[lines.length - 1].length;
+        }
 
-          if (cursor.first.text.y < 0) {
-            cursor.first.text.y = 0;
-            cursor.first.text.x = 0;
-          } else if (cursor.first.text.y >= lines.length) {
-            cursor.first.text.y = lines.length - 1;
-            cursor.first.text.x = lines[lines.length - 1].length;
-          }
+        if (target.text.x === -1 && target.text.y > 0) {
+          target.text.y -= 1;
+          target.text.x = lines[target.text.y].length;
+        }
 
-          if (cursor.first.text.x === -1 && cursor.first.text.y > 0) {
-            // go to line above
-            cursor.first.text.y -= 1;
-            cursor.first.text.x = lines[cursor.first.text.y].length;
-          }
-          if (cursor.first.text.x === lines[cursor.first.text.y].length + 1) {
-            // go to line below
-            cursor.first.text.y += 1;
-            cursor.first.text.x = 0;
-          }
+        if (
+          target.text.x === lines[target.text.y].length + 1 &&
+          e.key === "ArrowRight"
+        ) {
+          target.text.y += 1;
+          target.text.x = 0;
+        }
+
+        if (!e.shiftKey) {
           cursor.second.text = { ...cursor.first.text };
         }
       }
     } else {
       if (e.key.length === 1) {
         for (const cursor of state.cursors) {
-          // delete the chars between first and second
           const sorted = sortedCursor(cursor);
           const start = textIndexFromXY(
             chars,

@@ -1,11 +1,10 @@
-- cmd + delete (deletes to beginning of line)
+- cmd/ctrl + z to undo
 - make tab and shift+tab work like code editors
+
+- cmd + delete (deletes to beginning of line)
 - movement modifiers:
   - cmd
   - opt
-- double click to select word
-- triple click to select line
-- cmd/ctrl + z to undo
 - open/close files?
 - make electron/tauri app
 - vim mode
