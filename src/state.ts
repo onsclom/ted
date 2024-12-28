@@ -5,6 +5,8 @@ second line
 this is a test string`;
 
 export const state = {
+  lastClickTime: 0,
+  clickCount: 0,
   cursors: [] as {
     first: {
       // in text coords

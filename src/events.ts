@@ -3,11 +3,22 @@ import { margins } from "./constants";
 import { sortedCursor, textIndexFromXY } from "./utils";
 import { canvas } from "./canvas";
 
+const DOUBLE_CLICK_TIME = 500; // This can stay as a constant
+
 document.body.onload = () => {
   canvas.onpointerdown = (e) => {
     canvas.setPointerCapture(e.pointerId);
     state.cursorDown = true;
     state.cursorLastChangeTime = 0;
+
+    const now = performance.now();
+    if (now - state.lastClickTime < DOUBLE_CLICK_TIME) {
+      state.clickCount++;
+    } else {
+      state.clickCount = 1;
+    }
+    state.lastClickTime = now;
+
     // figure out which char the cursor should be at
     const x = Math.max(
       Math.round(
@@ -32,7 +43,52 @@ document.body.onload = () => {
       state.cursors[0].first.text = { x, y };
       state.cursors[0].second.text = { x, y };
     }
+
+    if (state.clickCount === 2) {
+      selectWord(x, y);
+    } else if (state.clickCount === 3) {
+      selectLine(y);
+      state.clickCount = 0; // Reset after triple click
+    }
   };
+
+  // Add these helper functions
+  function selectWord(x: number, y: number) {
+    const chars = state.text.map((char) => char.char);
+    const lines = chars.join("").split("\n");
+    const line = lines[y];
+
+    if (!line) return;
+
+    // Find word boundaries
+    let startX = x;
+    let endX = x;
+
+    // Search backwards for word start
+    while (startX > 0 && /\w/.test(line[startX - 1])) {
+      startX--;
+    }
+
+    // Search forwards for word end
+    while (endX < line.length && /\w/.test(line[endX])) {
+      endX++;
+    }
+
+    // Update cursor positions
+    state.cursors[0].first.text = { x: startX, y };
+    state.cursors[0].second.text = { x: endX, y };
+  }
+
+  function selectLine(y: number) {
+    const chars = state.text.map((char) => char.char);
+    const lines = chars.join("").split("\n");
+
+    if (y >= 0 && y < lines.length) {
+      // Select entire line
+      state.cursors[0].first.text = { x: 0, y };
+      state.cursors[0].second.text = { x: lines[y].length, y };
+    }
+  }
 
   canvas.onpointerup = () => {
     state.cursorDown = false;
