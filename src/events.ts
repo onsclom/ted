@@ -327,7 +327,9 @@ document.body.onload = () => {
       for (const cursor of state.cursors) {
         const target = e.shiftKey ? cursor.second : cursor.first;
 
+        // @ts-expect-error
         target.text.x += dirs[e.key].x;
+        // @ts-expect-error
         target.text.y += dirs[e.key].y;
 
         if (target.text.y < 0) {

@@ -4,9 +4,111 @@ import { animated, sortedCursor } from "./utils";
 import { canvas } from "./canvas";
 import { lineSpacing } from "./constants";
 
+import fragmentSource from "./fragment.glsl?raw";
+import vertexSource from "./vertex.glsl?raw";
+
 // prevent FOUC
 document.fonts.load("20px 'IBM Plex Mono'").then(() => raf());
 const blue = "#55e";
+
+const glCanvas = document.createElement("canvas");
+const glRect = canvas.getBoundingClientRect();
+glCanvas.width = glRect.width * devicePixelRatio;
+glCanvas.height = glRect.height * devicePixelRatio;
+document.body.appendChild(glCanvas);
+// ignore pointer
+glCanvas.style.pointerEvents = "none";
+
+const ctx = canvas.getContext("2d");
+const gl = glCanvas.getContext("webgl");
+assert(gl);
+
+function createShader(
+  gl: WebGLRenderingContext,
+  type: number,
+  source: string,
+): WebGLShader {
+  const shader = gl.createShader(type);
+  if (!shader) {
+    throw new Error("Failed to create shader");
+  }
+  gl.shaderSource(shader, source);
+  gl.compileShader(shader);
+  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+    const info = gl.getShaderInfoLog(shader);
+    gl.deleteShader(shader);
+    throw new Error(`Failed to compile shader: ${info}`);
+  }
+  return shader;
+}
+
+function createProgram(
+  gl: WebGLRenderingContext,
+  vertexShader: WebGLShader,
+  fragmentShader: WebGLShader,
+): WebGLProgram {
+  const program = gl.createProgram();
+  if (!program) {
+    throw new Error("Failed to create program");
+  }
+  gl.attachShader(program, vertexShader);
+  gl.attachShader(program, fragmentShader);
+  gl.linkProgram(program);
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+    const info = gl.getProgramInfoLog(program);
+    gl.deleteProgram(program);
+    throw new Error(`Failed to link program: ${info}`);
+  }
+  return program;
+}
+
+// Create shaders and program
+const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexSource);
+const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentSource);
+const program = createProgram(gl, vertexShader, fragmentShader);
+const texture = gl.createTexture();
+const positionLocation = gl.getAttribLocation(program, "a_position");
+const textureLocation = gl.getUniformLocation(program, "u_texture");
+const resolutionLocation = gl.getUniformLocation(program, "u_resolution");
+const timeLocation = gl.getUniformLocation(program, "u_time");
+{
+  // Look up attribute and uniform locations
+
+  // Set up rectangle geometry
+  const positionBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+  gl.bufferData(
+    gl.ARRAY_BUFFER,
+    new Float32Array([
+      -1,
+      -1, // Bottom-left
+      1,
+      -1, // Bottom-right
+      -1,
+      1, // Top-left
+      -1,
+      1, // Top-left
+      1,
+      -1, // Bottom-right
+      1,
+      1, // Top-right
+    ]),
+    gl.STATIC_DRAW,
+  );
+
+  // Create a texture and set up parameters
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+  // Enable the attribute
+  gl.enableVertexAttribArray(positionLocation);
+  gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+  gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+}
+assert(gl);
 
 let lastTime = performance.now();
 function raf() {
@@ -98,10 +200,12 @@ function raf() {
   canvas.width = bounds.width * devicePixelRatio;
   canvas.height = bounds.height * devicePixelRatio;
 
-  const ctx = canvas.getContext("2d");
   assert(ctx);
   ctx.scale(devicePixelRatio, devicePixelRatio);
   ctx.translate(-state.scrollx, -state.scrolly);
+
+  ctx.fillStyle = "black";
+  ctx.fillRect(0, 0, bounds.width, bounds.height);
 
   ctx.strokeStyle = blue;
   // draw line at top of document
@@ -186,14 +290,14 @@ function raf() {
   const verticalPadding = (state.charRect.height - charHeight) / 2;
   // draw letter graveyard
   state.letterGraveyard.forEach((char) => {
-    ctx.fillStyle = "black";
+    ctx.fillStyle = "white";
     const deadTime = 100;
     ctx.globalAlpha = Math.max(0, 1 - char.timeDead / deadTime);
     ctx.fillText(char.char, char.x, char.y + verticalPadding);
   });
   ctx.globalAlpha = 1;
 
-  ctx.fillStyle = "black";
+  ctx.fillStyle = "white";
   // print all chars
   {
     let x = 0;
@@ -215,5 +319,31 @@ function raf() {
     }
     ctx.globalAlpha = 1;
   }
+
+  // apply post processing
+
+  // Upload 2D canvas content to WebGL texture
+  assert(gl);
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+  gl.texImage2D(
+    gl.TEXTURE_2D,
+    0,
+    gl.RGBA,
+    gl.RGBA,
+    gl.UNSIGNED_BYTE,
+    ctx.canvas,
+  );
+
+  // Use the program and set the uniform
+  gl.useProgram(program);
+  gl.uniform1i(textureLocation, 0);
+  gl.uniform2f(resolutionLocation, gl.canvas.width, gl.canvas.height);
+  gl.uniform1f(timeLocation, now / 1000);
+
+  // Draw the rectangle
+  gl.clearColor(0, 0, 0, 1);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.drawArrays(gl.TRIANGLES, 0, 6);
+
   requestAnimationFrame(raf);
 }
