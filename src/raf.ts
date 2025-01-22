@@ -204,7 +204,7 @@ function raf() {
   ctx.scale(devicePixelRatio, devicePixelRatio);
   ctx.translate(-state.scrollx, -state.scrolly);
 
-  ctx.fillStyle = "black";
+  ctx.fillStyle = "white";
   ctx.fillRect(0, 0, bounds.width, bounds.height);
 
   ctx.strokeStyle = blue;
@@ -290,14 +290,14 @@ function raf() {
   const verticalPadding = (state.charRect.height - charHeight) / 2;
   // draw letter graveyard
   state.letterGraveyard.forEach((char) => {
-    ctx.fillStyle = "white";
+    ctx.fillStyle = "black";
     const deadTime = 100;
     ctx.globalAlpha = Math.max(0, 1 - char.timeDead / deadTime);
     ctx.fillText(char.char, char.x, char.y + verticalPadding);
   });
   ctx.globalAlpha = 1;
 
-  ctx.fillStyle = "white";
+  ctx.fillStyle = "black";
   // print all chars
   {
     let x = 0;
