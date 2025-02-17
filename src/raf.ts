@@ -168,9 +168,9 @@ function raf() {
     }
 
     const firstTarget = textPosToCanvasPos(cursor.first.text);
-    cursor.first.animated = animated(cursor.first.animated, firstTarget);
+    cursor.first.animated = animated(cursor.first.animated, firstTarget, dt);
     const secondTarget = textPosToCanvasPos(cursor.second.text);
-    cursor.second.animated = animated(cursor.second.animated, secondTarget);
+    cursor.second.animated = animated(cursor.second.animated, secondTarget, dt);
   }
 
   {
@@ -179,7 +179,7 @@ function raf() {
     let y = 0;
     for (const char of state.text) {
       const target = textPosToCanvasPos({ x, y });
-      char.animated = animated(char.animated, target);
+      char.animated = animated(char.animated, target, dt);
       if (char.char === "\n") {
         x = 0;
         y += 1;
@@ -320,30 +320,31 @@ function raf() {
     ctx.globalAlpha = 1;
   }
 
-  // apply post processing
+  const postprocess = false;
+  if (postprocess) {
+    // Upload 2D canvas content to WebGL texture
+    assert(gl);
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texImage2D(
+      gl.TEXTURE_2D,
+      0,
+      gl.RGBA,
+      gl.RGBA,
+      gl.UNSIGNED_BYTE,
+      ctx.canvas,
+    );
 
-  // Upload 2D canvas content to WebGL texture
-  assert(gl);
-  gl.bindTexture(gl.TEXTURE_2D, texture);
-  gl.texImage2D(
-    gl.TEXTURE_2D,
-    0,
-    gl.RGBA,
-    gl.RGBA,
-    gl.UNSIGNED_BYTE,
-    ctx.canvas,
-  );
+    // Use the program and set the uniform
+    // gl.useProgram(program);
+    gl.uniform1i(textureLocation, 0);
+    gl.uniform2f(resolutionLocation, gl.canvas.width, gl.canvas.height);
+    gl.uniform1f(timeLocation, now / 1000);
 
-  // Use the program and set the uniform
-  gl.useProgram(program);
-  gl.uniform1i(textureLocation, 0);
-  gl.uniform2f(resolutionLocation, gl.canvas.width, gl.canvas.height);
-  gl.uniform1f(timeLocation, now / 1000);
-
-  // Draw the rectangle
-  gl.clearColor(0, 0, 0, 1);
-  gl.clear(gl.COLOR_BUFFER_BIT);
-  gl.drawArrays(gl.TRIANGLES, 0, 6);
+    // Draw the rectangle
+    gl.clearColor(0, 0, 0, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+  }
 
   requestAnimationFrame(raf);
 }

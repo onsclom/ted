@@ -33,9 +33,10 @@ export function sortedCursor(cursor: (typeof state.cursors)[0]) {
 export function animated(
   cur: { x: number; y: number },
   target: { x: number; y: number },
+  dt: number,
 ) {
   const res = { x: cur.x, y: cur.y };
-  const animateRatio = 0.2;
+  const animateRatio = 0.2 * (dt / (1000 / 120));
   res.x += (target.x - res.x) * animateRatio;
   res.y += (target.y - res.y) * animateRatio;
   const maxDistance = 30;
