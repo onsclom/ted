@@ -118,7 +118,8 @@ function raf() {
 
   for (let i = state.letterGraveyard.length - 1; i >= 0; i--) {
     state.letterGraveyard[i].timeDead += dt;
-    if (state.letterGraveyard[i].timeDead > 100) {
+    const letterLifetime = 1000;
+    if (state.letterGraveyard[i].timeDead > letterLifetime) {
       state.letterGraveyard.splice(i, 1);
     }
   }
@@ -179,7 +180,9 @@ function raf() {
     let y = 0;
     for (const char of state.text) {
       const target = textPosToCanvasPos({ x, y });
-      char.animated = animated(char.animated, target, dt);
+      char.animatedPos = animated(char.animatedPos, target, dt);
+      char.textPos.x = x;
+      char.textPos.y = y;
       if (char.char === "\n") {
         x = 0;
         y += 1;
@@ -228,11 +231,114 @@ function raf() {
   state.charRect.width = ctx.measureText(" ").width;
   state.charRect.height = charHeight * lineSpacing;
 
-  ctx.fillStyle = "#adf";
-  ctx.lineWidth = 2;
+  const verticalPadding = (state.charRect.height - charHeight) / 2;
+  // draw letter graveyard
+  state.letterGraveyard.forEach((char) => {
+    ctx.fillStyle = "black";
+    // const deadTime = 100;
+    // ctx.globalAlpha = Math.max(0, 1 - char.timeDead / deadTime);
+
+    ctx.save();
+    if (char.animateOut.type === "cursorHide") {
+      const sortedCursors = sortedCursor(state.cursors[0]);
+      const cursorPos = sortedCursors.left.animated;
+      // will cursor eventually uncover this?
+      // it will if its on the same y, but further x
+
+      const willCover =
+        sortedCursors.left.text.x <= char.textPos.x &&
+        sortedCursors.left.text.y === char.textPos.y;
+
+      const coveredPercentage = willCover
+        ? -(cursorPos.x - (char.x + state.charRect.width)) /
+          state.charRect.width
+        : 1;
+
+      char.animateOut.covered = Math.max(
+        char.animateOut.covered,
+        coveredPercentage,
+      );
+
+      ctx.beginPath();
+      ctx.rect(
+        char.x +
+          state.charRect.width * (1 - char.animateOut.covered) -
+          state.charRect.width,
+        char.y,
+        state.charRect.width,
+        state.charRect.height,
+      );
+      ctx.clip();
+    } else if (char.animateOut.type === "fadeOut") {
+      ctx.globalAlpha = Math.max(1 - char.timeDead / 100, 0);
+    }
+
+    ctx.fillText(char.char, char.x, char.y + verticalPadding);
+    ctx.restore();
+  });
+  ctx.globalAlpha = 1;
+
+  ctx.fillStyle = "black";
+  // print all chars
+  {
+    let charX = 0;
+    let charY = 0;
+    for (const char of state.text) {
+      const charPos = char.animatedPos;
+      const leftCursor = sortedCursor(state.cursors[0]).left;
+      const cursorPos = leftCursor.animated;
+
+      // TODO: finish cursor animation thing?
+      ctx.save();
+      if (char.animatedEntrance.type === "cursorReveal") {
+        //    setup clip rect
+
+        const revealedPercentage = clamp(
+          (cursorPos.x - charPos.x) / state.charRect.width,
+          0,
+          1,
+        );
+
+        const willReveal =
+          leftCursor.text.x >= charX + 1 && leftCursor.text.y >= charY;
+
+        char.animatedEntrance.revealed = willReveal
+          ? Math.max(char.animatedEntrance.revealed, revealedPercentage)
+          : 1;
+
+        ctx.beginPath();
+        // const cursorX = cursorPos.x;
+        // ctx.rect(0, 0, char.animatedEntrance.revealed, bounds.height);
+        ctx.rect(
+          charPos.x,
+          charPos.y,
+          state.charRect.width * char.animatedEntrance.revealed,
+          state.charRect.height,
+        );
+        ctx.clip();
+      }
+
+      ctx.fillText(
+        char.char,
+        char.animatedPos.x,
+        char.animatedPos.y + verticalPadding,
+      );
+      ctx.restore();
+
+      charX++;
+      if (char.char === "\n") {
+        charY++;
+        charX = 0;
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
   // draw cursors
   {
     ctx.save();
+    ctx.fillStyle = "#adf";
+    ctx.lineWidth = 2;
     const cursorStartsBlinking = 1000;
     const blinkRate = 200;
     if (state.cursorLastChangeTime > cursorStartsBlinking) {
@@ -287,39 +393,6 @@ function raf() {
     ctx.restore();
   }
 
-  const verticalPadding = (state.charRect.height - charHeight) / 2;
-  // draw letter graveyard
-  state.letterGraveyard.forEach((char) => {
-    ctx.fillStyle = "black";
-    const deadTime = 100;
-    ctx.globalAlpha = Math.max(0, 1 - char.timeDead / deadTime);
-    ctx.fillText(char.char, char.x, char.y + verticalPadding);
-  });
-  ctx.globalAlpha = 1;
-
-  ctx.fillStyle = "black";
-  // print all chars
-  {
-    let x = 0;
-    let y = 0;
-    for (const char of state.text) {
-      const animateInTime = 100;
-      ctx.globalAlpha = Math.min(1, char.lifetime / animateInTime);
-      if (char.char === "\n") {
-        x = 0;
-        y += 1;
-      } else {
-        ctx.fillText(
-          char.char,
-          char.animated.x,
-          char.animated.y + verticalPadding,
-        );
-        x += 1;
-      }
-    }
-    ctx.globalAlpha = 1;
-  }
-
   const postprocess = false;
   if (postprocess) {
     // Upload 2D canvas content to WebGL texture
@@ -347,4 +420,8 @@ function raf() {
   }
 
   requestAnimationFrame(raf);
+}
+
+function clamp(x: number, min: number, max: number) {
+  return Math.min(Math.max(x, min), max);
 }

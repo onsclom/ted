@@ -25,9 +25,23 @@ export const state = {
   text: textToTextState(initialText),
   letterGraveyard: [] as {
     char: string;
+    // these are animated pos
     x: number;
     y: number;
+    // these are text coords
+    textPos: {
+      x: number;
+      y: number;
+    };
     timeDead: number;
+    animateOut:
+      | {
+          type: "cursorHide";
+          covered: number;
+        }
+      | {
+          type: "fadeOut";
+        };
   }[],
   charRect: { width: 0, height: 0 },
   cursorDown: false,
@@ -52,15 +66,25 @@ function textToTextState(text: string) {
   const chars = text.split("");
   const charState = [] as {
     char: string;
-    animated: { x: number; y: number };
+    textPos: { x: number; y: number };
+    animatedPos: { x: number; y: number };
     lifetime: number;
+    animatedEntrance:
+      | {
+          type: "fadeIn";
+        }
+      | {
+          type: "cursorReveal";
+          revealed: number;
+        };
   }[];
   for (let i = 0; i < chars.length; i++) {
     charState.push({
       char: chars[i],
-      // animated: textPosToCanvasPos({ x: x++, y }),
-      animated: { x: 0, y: 0 }, // TODO: fix later
+      textPos: { x: 0, y: 0 }, // TODO: fix
+      animatedPos: { x: 0, y: 0 }, // TODO: fix starting pos?
       lifetime: 0,
+      animatedEntrance: { type: "fadeIn" },
     });
   }
   return charState;
