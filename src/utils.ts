@@ -36,7 +36,7 @@ export function animated(
   dt: number,
 ) {
   const res = { x: cur.x, y: cur.y };
-  const animateRatio = 0.3 * (dt / (1000 / 120));
+  const animateRatio = 0.2 * (dt / (1000 / 120));
   res.x += (target.x - res.x) * animateRatio;
   res.y += (target.y - res.y) * animateRatio;
   const maxDistance = 30;
